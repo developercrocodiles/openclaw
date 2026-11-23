@@ -3,6 +3,7 @@ package ai.openclaw.app.ui
 import ai.openclaw.app.AppearanceTextScale
 import ai.openclaw.app.AppearanceThemeMode
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +24,14 @@ import androidx.core.view.WindowCompat
 
 internal val LocalResolvedAppearanceIsDark = staticCompositionLocalOf { false }
 
+private fun darkColorScheme(context: Context) =
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) dynamicDarkColorScheme(context)
+  else androidx.compose.material3.darkColorScheme()
+
+private fun lightColorScheme(context: Context) =
+  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) dynamicLightColorScheme(context)
+  else androidx.compose.material3.lightColorScheme()
+
 /**
  * App theme wrapper that resolves the requested appearance for system surfaces and child themes.
  *
@@ -35,14 +44,10 @@ fun OpenClawTheme(
   textScale: AppearanceTextScale = AppearanceTextScale.Standard,
   content: @Composable () -> Unit,
 ) {
-  val context = LocalContext.current
+  val context: Context = LocalContext.current
   val isDark = themeMode.isDark(systemDark = isSystemInDarkTheme())
   val colorScheme =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-      if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-      if (isDark) darkColorScheme(context) else lightColorScheme(context)
-    }
+    if (isDark) darkColorScheme(context) else lightColorScheme(context)
 
   val systemDensity = LocalDensity.current
   val textDensity =
