@@ -10,13 +10,13 @@ import android.media.AudioRecord
 import android.media.AudioRouting
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import java.net.URLDecoder
 import java.net.URLEncoder
-
 internal data class AudioInputDeviceOption(
   val key: String,
   val productName: String,
@@ -219,13 +219,16 @@ internal class AndroidAudioInputSession private constructor(
       applyRoute(inputs, null)
     }
   }
-
   private fun applyRoute(
     inputs: List<AudioDeviceInfo>,
     preferredInput: AudioDeviceInfo?,
   ): Boolean {
-    val available = audioManager.availableCommunicationDevices
-    val bluetoothDevice =
+    val available =
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        audioManager.availableCommunicationDevices?.orEmpty()
+      } else {
+        audioManager.getDevices(AudioManager.GET_DEVICES_ALL).toList()
+      }
       if (preferredInput == null) {
         selectBluetoothDevice(available, requestedCommunicationDevice)
       } else {
