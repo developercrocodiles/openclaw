@@ -31,6 +31,8 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 12
 
       - name: Setup Node 24
         uses: actions/setup-node@v4
@@ -46,9 +48,32 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Build Android APK
+      - name: Configure throwaway release signing
+        run: |
+          cat >> apps/android/gradle.properties <<'EOF'
+          OPENCLAW_ANDROID_STORE_FILE=/tmp/openclaw-release.keystore
+          OPENCLAW_ANDROID_STORE_PASSWORD=openclaw123
+          OPENCLAW_ANDROID_KEY_ALIAS=openclaw-release
+          OPENCLAW_ANDROID_KEY_PASSWORD=openclaw123
+          EOF
+
+      - name: Generate throwaway release keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore /tmp/openclaw-release.keystore \
+            -alias openclaw-release \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass openclaw123 \
+            -keypass openclaw123 \
+            -dname "CN=OpenClaw Release, O=OpenClaw, C=US"
+
+      - name: Build Production Android APK
         working-directory: apps/android
-        run: ./gradlew :app:assemblePlayDebug :wear:assembleDebug
+        run: |
+          ./gradlew :app:assemblePlayRelease :wear:assembleRelease \
+            -PopenclawBuildCommit=$(git rev-parse HEAD) \
+            -PopenclawBuildTimestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           JAVA_HOME: ${{ env.JAVA_HOME }}
@@ -60,6 +85,6 @@ jobs:
         with:
           name: android-apks
           path: |
-            apps/android/app/build/outputs/apk/**/*.apk
-            apps/android/wear/build/outputs/apk/**/*.apk
+            apps/android/app/build/outputs/apk/play/release/*.apk
+            apps/android/wear/build/outputs/apk/release/*.apk
           retention-days: 7
