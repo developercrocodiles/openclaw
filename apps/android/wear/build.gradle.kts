@@ -67,7 +67,7 @@ android {
   defaultConfig {
     // Data Layer traffic is scoped to matching package names and signatures.
     applicationId = "ai.openclaw.app"
-    minSdk = 31
+    minSdk = 30
     targetSdk = 36
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     versionCode = openClawAndroidWearVersionCode
