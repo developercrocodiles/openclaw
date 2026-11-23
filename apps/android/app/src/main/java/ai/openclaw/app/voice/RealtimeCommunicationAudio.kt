@@ -3,6 +3,7 @@ package ai.openclaw.app.voice
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import kotlinx.coroutines.CancellationException
@@ -16,7 +17,14 @@ internal class RealtimeCommunicationAudio private constructor(
 ) : AutoCloseable {
   companion object {
     private val ownershipLock = Any()
-    private var current: RealtimeCommunicationAudio? = null
+    @Volatile private var current: RealtimeCommunicationAudio? = null
+
+    fun playbackAttributes(): AudioAttributes =
+      AudioAttributes
+        .Builder()
+        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build()
 
     fun open(
       audioManager: AudioManager,
@@ -37,13 +45,6 @@ internal class RealtimeCommunicationAudio private constructor(
           }
         }
       }
-
-    fun playbackAttributes(): AudioAttributes =
-      AudioAttributes
-        .Builder()
-        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-        .build()
   }
 
   @Volatile private var closed = false
@@ -83,9 +84,11 @@ internal class RealtimeCommunicationAudio private constructor(
   val eligible: Boolean
     get() = !closed && focus.get() == Focus.Granted && mode == AudioManager.MODE_IN_COMMUNICATION
 
-  private fun start() {
-    audioManager.addOnModeChangedListener({ command -> handler.post(command) }, modeListener)
-    modeListenerRegistered = true
+  private fun start(): RealtimeCommunicationAudio {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      audioManager.addOnModeChangedListener({ command -> handler.post(command) }, modeListener)
+      modeListenerRegistered = true
+    }
     val granted = audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     // A loss callback delivered during acquisition must not be overwritten by its return value.
     focus.compareAndSet(Focus.Requesting, if (granted) Focus.Granted else Focus.Lost)
@@ -93,6 +96,7 @@ internal class RealtimeCommunicationAudio private constructor(
     modeRequested = true
     audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
     mode = audioManager.mode
+    return this
   }
 
   override fun close() {
